@@ -204,23 +204,30 @@ export default {
       this.$refs.codeForm.validateField('email', (errorMessage) => {
         if (!errorMessage) {
           this.isSending = true
-          this.countdown = 60
-          this.sendBtnText = `${this.countdown}秒后重新获取`
           
-          // 倒计时
-          const timer = setInterval(() => {
-            this.countdown--
-            this.sendBtnText = `${this.countdown}秒后重新获取`
-            
-            if (this.countdown <= 0) {
-              clearInterval(timer)
-              this.isSending = false
-              this.sendBtnText = '获取验证码'
+          // 立即发送验证码请求
+          this.$http.get('/email/login', {
+            params: {
+              email: this.codeForm.email
             }
-          }, 1000)
-          
-          // 模拟发送验证码
-          this.$message.success(`验证码已发送至邮箱: ${this.codeForm.email}`)
+          }).then(() => {
+            this.$message.success('验证码发送成功')
+            this.countdown = 60
+            const timer = setInterval(() => {
+              this.countdown--
+              this.sendBtnText = `${this.countdown}秒后重新获取`
+              
+              if (this.countdown <= 0) {
+                clearInterval(timer)
+                this.isSending = false
+                this.sendBtnText = '获取验证码'
+              }
+            }, 1000)
+          }).catch(error => {
+            this.$message.error(error.response?.data?.message ?? '验证码发送失败')
+            this.isSending = false
+            this.sendBtnText = '获取验证码'
+          })
         }
       })
     },
@@ -246,10 +253,9 @@ export default {
     handleUpdateEmail() {
       this.$refs.updateEmailForm.validate(valid => {
         if (valid) {
-          this.$http.get('/user/update-email', {
+          this.$http.get('/email/login', {
             params: {
-              oldEmail: this.updateEmailForm.oldEmail,
-              newEmail: this.updateEmailForm.newEmail
+              email: this.codeForm.email
             }
           }).then(response => {
             this.$message.success('邮箱更新成功')

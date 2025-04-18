@@ -3,7 +3,6 @@ module.exports = defineConfig({
   transpileDependencies: true,
   lintOnSave: false,
   devServer: {
-    hot: true,
-    hotOnly: true
+    hot: true
   }
 })

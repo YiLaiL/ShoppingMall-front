@@ -5,14 +5,15 @@
       <div class="user-info">
         <div class="avatar-container">
           <el-avatar :size="80" :src="userInfo.avatar || 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png'"></el-avatar>
-          <el-button type="text" class="change-avatar-btn" @click="showAvatarUpload = true">修改头像</el-button>
         </div>
         <div class="user-details">
           <h2>{{ userInfo.username }}</h2>
           <p>{{ userInfo.email }}</p>
         </div>
-        <el-button type="primary" size="small" @click="showEditDialog = true">编辑资料</el-button>
-          <el-button type="danger" size="small" @click="handleLogout" style="margin-left: 10px;">退出登录</el-button>
+        <el-button type="primary" size="small" @click="handleEditProfile">编辑资料</el-button>
+        <el-button type="warning" size="small" @click="openEmailDialog" style="margin-left: 10px;">修改邮箱</el-button>
+        <el-button type="info" size="small" @click="openPasswordDialog" style="margin-left: 10px;">修改密码</el-button>
+        <el-button type="danger" size="small" @click="handleLogout" style="margin-left: 10px;">退出登录</el-button>
       </div>
     </el-card>
     
@@ -94,13 +95,29 @@
     
     <!-- 编辑个人资料对话框 -->
     <el-dialog title="编辑个人资料" :visible.sync="showEditDialog" width="400px">
+    
+
       <el-form :model="editForm" :rules="editRules" ref="editForm" label-width="80px">
         <el-form-item label="用户名" prop="username">
           <el-input v-model="editForm.username"></el-input>
         </el-form-item>
-        <el-form-item label="邮箱" prop="email">
-          <el-input v-model="editForm.email"></el-input>
+        <el-form-item label="手机号" prop="phone">
+          <el-input v-model="editForm.phone"></el-input>
         </el-form-item>
+        <el-form-item label="性别" prop="gender">
+          <el-select v-model="editForm.gender" placeholder="请选择性别">
+            <el-option label="男" value="male"></el-option>
+            <el-option label="女" value="female"></el-option>
+            <el-option label="其他" value="other"></el-option>
+          </el-select>
+        </el-form-item>
+        <el-form-item label="描述" prop="description">
+          <el-input type="textarea" v-model="editForm.description" :rows="2"></el-input>
+        </el-form-item>
+        <el-form-item label="头像" prop="avatar">
+          <SingleUpload v-model="editForm.avatar" />
+        </el-form-item>
+
       </el-form>
       <span slot="footer" class="dialog-footer">
         <el-button @click="showEditDialog = false">取消</el-button>
@@ -108,23 +125,56 @@
       </span>
     </el-dialog>
     
-    <!-- 头像上传对话框 -->
-    <el-dialog title="修改头像" :visible.sync="showAvatarUpload" width="400px">
-      <el-upload
-        class="avatar-uploader"
-        action="#"
-        :auto-upload="false"
-        :on-change="handleAvatarChange"
-        :show-file-list="false">
-        <img v-if="avatarPreview" :src="avatarPreview" class="avatar-preview">
-        <i v-else class="el-icon-plus avatar-uploader-icon"></i>
-      </el-upload>
+    <!-- 修改密码对话框 -->
+    <el-dialog title="修改密码" :visible.sync="showPasswordDialog" width="400px">
+      <el-form :model="passwordForm" :rules="passwordRules" ref="passwordForm" label-width="80px">
+        <el-form-item label="新密码" prop="reset">
+          <el-input v-model="passwordForm.reset" type="password" placeholder="请输入新密码"></el-input>
+        </el-form-item>
+        <el-form-item label="验证码" prop="code">
+          <el-input v-model="passwordForm.code" placeholder="请输入验证码" style="width: 60%"></el-input>
+          <el-button 
+            type="primary" 
+            size="small" 
+            @click="sendPasswordCode" 
+            :disabled="passwordCodeBtnDisabled"
+            style="margin-left: 10px;">
+            {{ passwordCodeBtnText }}
+          </el-button>
+        </el-form-item>
+      </el-form>
       <span slot="footer" class="dialog-footer">
-        <el-button @click="showAvatarUpload = false">取消</el-button>
-        <el-button type="primary" @click="updateAvatar">确定</el-button>
+        <el-button @click="showPasswordDialog = false">取消</el-button>
+        <el-button type="primary" @click="submitPasswordUpdate">确定</el-button>
       </span>
     </el-dialog>
     
+    <!-- 修改邮箱对话框 -->
+    <el-dialog title="修改邮箱" :visible.sync="showEmailDialog" width="400px">
+      <el-form :model="emailForm" :rules="emailRules" ref="emailForm" label-width="80px">
+        <el-form-item label="新邮箱" prop="reset">
+          <el-input v-model="emailForm.reset" placeholder="请输入新邮箱"></el-input>
+        </el-form-item>
+        <el-form-item label="验证码" prop="code">
+          <el-input v-model="emailForm.code" placeholder="请输入验证码" style="width: 60%"></el-input>
+          <el-button 
+            type="primary" 
+            size="small" 
+            @click="sendVerificationCode" 
+            :disabled="emailCodeBtnDisabled"
+            style="margin-left: 10px;">
+            {{ emailCodeBtnText }}
+          </el-button>
+        </el-form-item>
+      </el-form>
+      <span slot="footer" class="dialog-footer">
+        <el-button @click="showEmailDialog = false">取消</el-button>
+        <el-button type="primary" @click="submitEmailUpdate">确定</el-button>
+      </span>
+    </el-dialog>
+
+
+
     <!-- 底部导航栏 -->
     <div class="bottom-nav">
       <div class="nav-item" @click="$router.push('/home')">
@@ -140,8 +190,12 @@
 </template>
 
 <script>
+import SingleUpload from '../components/SingleUpload.vue'
 export default {
   name: 'Profile',
+  components: {
+    SingleUpload
+  },
   data() {
     // 邮箱验证规则
     const validateEmail = (rule, value, callback) => {
@@ -156,6 +210,7 @@ export default {
     }
     
     return {
+
       userInfo: {
         username: '',
         email: '',
@@ -164,10 +219,14 @@ export default {
       activeTab: 'myProducts',
       myProducts: [],
       showEditDialog: false,
-      showAvatarUpload: false,
+
       avatarPreview: '',
       editForm: {
         username: '',
+        phone: '',
+        avatar: '',
+        description: '',
+        gender: '',
         email: ''
       },
       editRules: {
@@ -175,10 +234,53 @@ export default {
           { required: true, message: '请输入用户名', trigger: 'blur' },
           { min: 2, max: 20, message: '长度在 2 到 20 个字符', trigger: 'blur' }
         ],
-        email: [
-          { required: true, validator: validateEmail, trigger: 'blur' }
+        phone: [
+          { required: true, message: '请输入手机号', trigger: 'blur' },
+          { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号', trigger: 'blur' }
+        ],
+        description: [
+          { max: 200, message: '描述不能超过200个字符', trigger: 'blur' }
+        ],
+        gender: [
+          { required: true, message: '请选择性别', trigger: 'change' }
+        ],
+      },
+      emailForm: {
+        reset: '',
+        code: ''
+      },
+      emailCodeBtnText: '发送验证码',
+      emailCodeBtnDisabled: false,
+      passwordForm: {
+        reset: '',
+        code: ''
+      },
+      passwordRules: {
+        reset: [
+          { required: true, message: '请输入新密码', trigger: 'blur' },
+          { min: 6, message: '密码长度不能少于6位', trigger: 'blur' }
+        ],
+        code: [
+          { required: true, message: '请输入验证码', trigger: 'blur' },
+          { min: 6, max: 6, message: '验证码为6位', trigger: 'blur' }
         ]
       },
+      showPasswordDialog: false,
+      passwordCodeBtnText: '发送验证码',
+      passwordCodeBtnDisabled: false,
+      emailRules: {
+        reset: [
+          { required: true, message: '请输入新邮箱', trigger: 'blur' },
+          { validator: validateEmail, trigger: 'blur' }
+        ],
+        code: [
+          { required: true, message: '请输入验证码', trigger: 'blur' },
+          { min: 6, max: 6, message: '验证码为6位', trigger: 'blur' }
+        ]
+      },
+      
+      showEmailDialog: false,
+
       productForm: {
         title: '',
         price: 0,
@@ -211,22 +313,227 @@ export default {
     }
   },
   created() {
-    // 从本地存储获取用户信息
-    const userInfoStr = localStorage.getItem('userInfo')
-    if (userInfoStr) {
-      this.userInfo = JSON.parse(userInfoStr)
-      this.editForm.username = this.userInfo.username
-      this.editForm.email = this.userInfo.email
-    }
-    
+    // 获取用户详情
+    this.getUserDetail();
     // 加载用户发布的商品
-    this.loadMyProducts()
+    this.loadMyProducts();
   },
   methods: {
+    // 处理文件选择
+    async handleFileChange(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      
+      // 验证文件类型和大小
+      const isImage = file.type.includes('image/');
+      const isLt2M = file.size / 1024 / 1024 < 2;
+      
+      if (!isImage) {
+        this.$message.error('请上传图片格式文件');
+        return;
+      }
+      if (!isLt2M) {
+        this.$message.error('图片大小不能超过2MB');
+        return;
+      }
+      
+      try {
+        // 获取上传签名
+        const { data: signature } = await this.$http.get('/upload/picture/front');
+        
+        // 预览图片
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          this.editForm.avatar = e.target.result;
+          
+          // 实际开发中这里应该调用上传API并携带签名
+          // this.uploadAvatar(file, signature);
+        };
+        reader.readAsDataURL(file);
+      } catch (error) {
+        this.$message.error('获取上传签名失败');
+        console.error(error);
+      }
+    },
+    
+    // 处理编辑资料
+    handleEditProfile() {
+      this.showEditDialog = true;
+      this.editForm = {...this.userInfo};
+      this.showEmailDialog = false;
+    },
+    openEmailDialog() {
+      this.showEmailDialog = true;
+      this.emailForm.reset = this.userInfo.email;
+      this.emailForm.code = '';
+      this.emailCodeBtnText = '发送验证码';
+      this.emailCodeBtnDisabled = false;
+      if (this.$refs.emailForm) this.$refs.emailForm.resetFields();
+    },
+    
+    sendVerificationCode() {
+      if (!this.emailForm.reset) {
+        this.$message.error('请输入邮箱地址');
+        return;
+      }
+      
+      this.emailCodeBtnDisabled = true;
+      this.emailCodeBtnText = '发送中...';
+      
+      this.$http.get('/email/update', {
+        params: {
+          email: this.emailForm.reset
+        }
+      }).then(res => {
+        if (res.code === 200) {
+          this.$message.success('验证码已发送');
+          this.emailCodeBtnText = '已发送(60s)';
+          
+          // 60秒倒计时
+          let countdown = 60;
+          const timer = setInterval(() => {
+            countdown--;
+            this.emailCodeBtnText = `已发送(${countdown}s)`;
+            
+            if (countdown <= 0) {
+              clearInterval(timer);
+              this.emailCodeBtnDisabled = false;
+              this.emailCodeBtnText = '重新发送';
+            }
+          }, 1000);
+        } else {
+          this.$message.error(res.msg || '发送失败');
+          this.emailCodeBtnDisabled = false;
+          this.emailCodeBtnText = '发送验证码';
+        }
+      }).catch(() => {
+        this.$message.error('发送失败');
+        this.emailCodeBtnDisabled = false;
+        this.emailCodeBtnText = '发送验证码';
+      });
+    },
+    
+    submitEmailUpdate() {
+      this.$refs.emailForm.validate(valid => {
+        if (!valid) return;
+        this.$http.patch('/user/update/email', {
+          reset: this.emailForm.reset,
+          code: this.emailForm.code
+        }).then(res => {
+          if (res.code === 200) {
+            this.$message.success('邮箱修改成功');
+            this.userInfo.email = this.emailForm.reset;
+            this.showEmailDialog = false;
+          } else {
+            this.$message.error(res.msg || '修改失败');
+          }
+        }).catch(() => {
+          this.$message.error('修改失败');
+        });
+      });
+    },
+    
+    openPasswordDialog() {
+      this.showPasswordDialog = true;
+      this.passwordForm.reset = '';
+      this.passwordForm.code = '';
+      this.passwordCodeBtnText = '发送验证码';
+      this.passwordCodeBtnDisabled = false;
+      if (this.$refs.passwordForm) this.$refs.passwordForm.resetFields();
+    },
+    
+    sendPasswordCode() {
+      if (!this.userInfo.email) {
+        this.$message.error('请先登录并获取邮箱信息');
+        return;
+      }
+      
+      this.passwordCodeBtnDisabled = true;
+      this.passwordCodeBtnText = '发送中...';
+      
+      this.$http.get('/email/reset', {
+        params: {
+          email: this.userInfo.email
+        }
+      }).then(res => {
+        if (res.code === 200) {
+          this.$message.success('验证码已发送');
+          this.passwordCodeBtnText = '已发送(60s)';
+          
+          // 60秒倒计时
+          let countdown = 60;
+          const timer = setInterval(() => {
+            countdown--;
+            this.passwordCodeBtnText = `已发送(${countdown}s)`;
+            
+            if (countdown <= 0) {
+              clearInterval(timer);
+              this.passwordCodeBtnDisabled = false;
+              this.passwordCodeBtnText = '重新发送';
+            }
+          }, 1000);
+        } else {
+          this.$message.error(res.msg || '发送失败');
+          this.passwordCodeBtnDisabled = false;
+          this.passwordCodeBtnText = '发送验证码';
+        }
+      }).catch(() => {
+        this.$message.error('发送失败');
+        this.passwordCodeBtnDisabled = false;
+        this.passwordCodeBtnText = '发送验证码';
+      });
+    },
+    
+    submitPasswordUpdate() {
+      this.$refs.passwordForm.validate(valid => {
+        if (!valid) return;
+        this.$http.patch('/user/update/password', {
+          reset: this.passwordForm.reset,
+          code: this.passwordForm.code
+        }).then(res => {
+          if (res.code === 200) {
+            this.$message.success('密码修改成功');
+            this.showPasswordDialog = false;
+          } else {
+            this.$message.error(res.msg || '修改失败');
+          }
+        }).catch(() => {
+          this.$message.error('修改失败');
+        });
+      });
+    },
+    
+
+    // 获取用户详情
+    getUserDetail() {
+      this.$http.get('/user/detail')
+        .then(res => {
+          if (res.code === 200) {
+            this.userInfo = res.data;
+          }
+        })
+        .catch(err => {
+          console.error('获取用户详情失败:', err);
+        });
+    },
     handleLogout() {
-      localStorage.removeItem('token');
-      this.$message.success('已退出登录');
-      this.$router.push('/login');
+      const token = localStorage.getItem('authToken');
+      this.$http.delete('/user/logout', {
+        headers: {
+        //  'Authorization': `Bearer ${token}`
+        }
+      })
+        .then(res => {
+          if (res.code === 200) {
+            localStorage.removeItem('authToken');
+            this.$message.success('已退出登录');
+            this.$router.push('/login');
+          }
+        })
+        .catch(err => {
+          console.error('退出登录失败:', err);
+          this.$message.error('退出登录失败');
+        });
     },
     loadMyProducts() {
       // 模拟获取用户发布的商品
@@ -325,21 +632,31 @@ export default {
       this.productForm.image = ''
     },
     updateUserInfo() {
-      this.$refs.editForm.validate((valid) => {
-        if (valid) {
-          // 更新用户信息
-          this.userInfo.username = this.editForm.username
-          this.userInfo.email = this.editForm.email
-          
-          // 保存到本地存储
-          localStorage.setItem('userInfo', JSON.stringify(this.userInfo))
-          
-          this.$message.success('个人资料更新成功')
-          this.showEditDialog = false
-        } else {
-          return false
-        }
-      })
+      this.$refs.editForm.validate(valid => {
+        if (!valid) return;
+        const requestData = {
+          id: this.userInfo.id,
+          studentId: this.userInfo.studentId || '',
+          username: this.editForm.username,
+          phone: this.editForm.phone,
+          avatar: this.editForm.avatar,
+          description: this.editForm.description,
+          gender: this.editForm.gender === 'male' ? 0 : 1
+        };
+        this.$http.put('/user/update', requestData)
+          .then(res => {
+            if (res.code === 200) {
+              this.$message.success('修改成功');
+              this.userInfo = {...this.editForm};
+              this.showEditDialog = false;
+            } else {
+              this.$message.error(res.msg || '修改失败');
+            }
+          })
+          .catch(() => {
+            this.$message.error('修改失败');
+          });
+      });
     },
     handleAvatarChange(file) {
       // 处理头像上传
@@ -357,21 +674,24 @@ export default {
       
       // 预览头像
       this.avatarPreview = URL.createObjectURL(file.raw)
+      
+      // 上传图片到服务器
+      const formData = new FormData()
+      formData.append('file', file.raw)
+      
+      this.$http.post('/upload/picture', formData)
+        .then(res => {
+          if (res.code === 200) {
+            this.editForm.avatar = res.data
+          }
+        })
+        .catch(err => {
+          console.error('上传头像失败:', err)
+          this.$message.error('上传头像失败')
+        })
     },
-    updateAvatar() {
-      if (this.avatarPreview) {
-        // 更新头像
-        this.userInfo.avatar = this.avatarPreview
-        
-        // 保存到本地存储
-        localStorage.setItem('userInfo', JSON.stringify(this.userInfo))
-        
-        this.$message.success('头像更新成功')
-        this.showAvatarUpload = false
-      } else {
-        this.$message.error('请先上传头像')
-      }
-    }
+    
+
   }
 }
 </script>
@@ -478,28 +798,36 @@ export default {
   margin: 40px 0;
 }
 
-.avatar-uploader {
-  text-align: center;
+.custom-upload {
+  display: inline-block;
 }
 
-.avatar-uploader-icon {
-  font-size: 28px;
-  color: #8c939d;
-  width: 120px;
-  height: 120px;
-  line-height: 120px;
-  text-align: center;
+.upload-area {
+  width: 80px;
+  height: 80px;
   border: 1px dashed #d9d9d9;
   border-radius: 6px;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
 }
 
-.avatar-preview {
-  width: 120px;
-  height: 120px;
-  border-radius: 6px;
+.upload-area:hover {
+  border-color: #409EFF;
+}
+
+.upload-placeholder {
+  text-align: center;
+  color: #8c939d;
+  font-size: 12px;
+}
+
+.avatar {
+  width: 80px;
+  height: 80px;
   display: block;
-  margin: 0 auto;
 }
 
 .bottom-nav {

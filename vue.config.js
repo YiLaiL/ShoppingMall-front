@@ -4,6 +4,15 @@ module.exports = defineConfig({
   lintOnSave: false,
   devServer: {
     hot: true,
-    hotOnly: true
+    port: 8090,
+    proxy: {
+      '/api': {
+        target: 'http://8.148.231.23:8081',
+        changeOrigin: true,
+        pathRewrite: {
+          '^/api': ''
+        }
+      }
+    }
   }
 })

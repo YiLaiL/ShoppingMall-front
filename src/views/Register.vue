@@ -81,19 +81,47 @@ export default {
   },
   methods: {
     handleRegister() {
-      this.$refs.registerForm.validate(valid => {
-        if (valid) {
-          this.$http.post('/user/register', this.registerForm)
-            .then(() => {
-              this.$message.success('注册成功')
-              this.$router.push('/login')
-            })
-            .catch(error => {
-              this.$message.error(error.response.data.message || '注册失败')
-            })
-        }
-      })
-    },
+  this.$refs.registerForm.validate(valid => {
+    if (!valid) {
+      this.$message.warning('请正确填写所有表单字段')
+      return
+    }
+
+    this.loading = true // 添加加载状态
+    
+    this.$http.post('/user/register', {
+      username: this.registerForm.username,
+      password: this.registerForm.password,
+      email: this.registerForm.email,
+      code: this.registerForm.code
+    })
+    .then(response => {
+      // 拦截器已过滤非200状态，这里只需处理成功逻辑
+      this.$message.success('注册成功，即将跳转到登录页')
+      
+      // 清空表单数据
+      this.registerForm = {
+        username: '',
+        password: '',
+        email: '',
+        code: ''
+      }
+
+      // 2秒后跳转登录页
+      setTimeout(() => {
+        this.$router.push('/login')
+      }, 2000)
+    })
+    .catch(error => {
+      // 移除本地错误提示，由全局拦截器处理
+      // this.$message.error(error.response?.data?.msg || error.message || '注册失败，请稍后重试')
+      this.loading = false
+    })
+    .finally(() => {
+      this.loading = false // 关闭加载状态
+    })
+  })
+},
     sendVerificationCode() {
       this.$refs.registerForm.validateField('email', (errorMessage) => {
         if (!errorMessage) {
@@ -112,7 +140,16 @@ export default {
             }
           }, 1000)
           
-          this.$message.success(`验证码已发送至邮箱: ${this.registerForm.email}`)
+          this.$http.get(`/email/register?email=${this.registerForm.email}`).then(() => {
+            this.$message.success(`验证码已发送至邮箱: ${this.registerForm.email}`)
+          }).catch(error => {
+            // 移除本地错误提示，由全局拦截器处理
+            // this.$message.error(error.response?.data?.msg || error.message || '验证码发送失败')
+            // 清除定时器并重置按钮状态
+            clearInterval(timer)
+            this.isSending = false
+            this.sendBtnText = '获取验证码'
+          })
         }
       })
     },

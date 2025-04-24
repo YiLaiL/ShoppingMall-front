@@ -19,6 +19,9 @@
               <el-button type="primary" class="login-btn" @click="handlePasswordLogin">登录</el-button>
               <el-button type="text" @click="showResetDialog = true" style="margin-left: 10px;">忘记密码</el-button>
               <el-button type="text" @click="showUpdateEmailDialog = true" style="margin-left: 10px;">修改邮箱</el-button>
+              <div class="register-link" style="margin-top:15px;text-align:center">
+                没有账号？<el-link type="primary" @click="$router.push('/register')">立即注册</el-link>
+              </div>
             </el-form-item>
           </el-form>
         </el-tab-pane>
@@ -176,10 +179,18 @@ export default {
             password: this.passwordForm.password,
             code: ''
           }).then(response => {
-            localStorage.setItem('token', response.data.token)
-            this.$router.push(this.$route.query.redirect || '/home')
+            // 存储token到localStorage
+            if (response && response.data) {
+              localStorage.setItem('authToken', response.data)
+            }
+            // 使用replace而不是push来避免导航守卫的重定向问题
+            this.$router.replace(this.$route.query.redirect || '/home')
           }).catch(error => {
-            this.$message.error(error.response.data.message || '登录失败')
+            // 移除本地错误提示，由全局拦截器处理
+            // const errMsg = error && error.response && error.response.data && error.response.data.msg 
+            //              ? error.response.data.msg 
+            //              : (error && error.message ? error.message : '登录失败，请稍后重试');
+            // this.$message.error(errMsg)
           })
         }
       })
@@ -191,11 +202,23 @@ export default {
             email: this.codeForm.email,
             password: '',
             code: this.codeForm.code
+          }, {
+            headers: {
+            //  'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+            }
           }).then(response => {
-            localStorage.setItem('token', response.data.token)
-            this.$router.push(this.$route.query.redirect || '/home')
+            // 存储token到localStorage
+            if (response && response.data) {
+              localStorage.setItem('authToken', response.data)
+            }
+            // 使用replace而不是push来避免导航守卫的重定向问题
+            this.$router.replace(this.$route.query.redirect || '/home')
           }).catch(error => {
-            this.$message.error(error.response.data.message || '登录失败')
+            // 移除本地错误提示，由全局拦截器处理
+            // const errMsg = error && error.response && error.response.data && error.response.data.msg 
+            //              ? error.response.data.msg 
+            //              : (error && error.message ? error.message : '登录失败，请稍后重试');
+            // this.$message.error(errMsg)
           })
         }
       })
@@ -224,7 +247,8 @@ export default {
               }
             }, 1000)
           }).catch(error => {
-            this.$message.error(error.response?.data?.message ?? '验证码发送失败')
+            // 移除本地错误提示，由全局拦截器处理
+            // this.$message.error(error && error.response && error.response.data && error.response.data.msg ? error.response.data.msg : '验证码发送失败');
             this.isSending = false
             this.sendBtnText = '获取验证码'
           })
@@ -244,7 +268,8 @@ export default {
             this.$message.success('密码重置成功')
             this.showResetDialog = false
           }).catch(error => {
-            this.$message.error(error.response?.data?.message ?? '密码重置失败')
+            // 移除本地错误提示，由全局拦截器处理
+            // this.$message.error(error && error.response && error.response.data && error.response.data.msg ? error.response.data.msg : '密码重置失败');
           })
         }
       })
@@ -261,7 +286,8 @@ export default {
             this.$message.success('邮箱更新成功')
             this.showUpdateEmailDialog = false
           }).catch(error => {
-            this.$message.error(error.response?.data?.message ?? '邮箱更新失败')
+            // 移除本地错误提示，由全局拦截器处理
+            // this.$message.error(error && error.response && error.response.data && error.response.data.msg ? error.response.data.msg : '邮箱更新失败');
           })
         }
       })
@@ -308,4 +334,12 @@ export default {
   margin-top: 10px;
 }
 
+.register-link {
+  margin-top: 10px;
+}
+
+.register-link >>> .el-link {
+  text-decoration-skip-ink: none;
+  line-height: 1.2;
+}
 </style>

@@ -5,6 +5,11 @@ Vue.use(VueRouter)
 
 const routes = [
   {
+    path: '/search',
+    name: 'SearchResults',
+    component: () => import('../views/SearchResults.vue')
+  },
+  {
     path: '/',
     redirect: '/login'
   },

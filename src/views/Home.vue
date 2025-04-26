@@ -6,9 +6,9 @@
         placeholder="搜索商品"
         prefix-icon="el-icon-search"
         v-model="searchKeyword"
-        @keyup.enter.native="searchProducts"
+        @keyup.enter.native="$router.push({ path: '/search', query: { keyword: searchKeyword, from: 'home' } })"
       >
-        <el-button slot="append" icon="el-icon-search" @click="searchProducts"></el-button>
+        <el-button slot="append" icon="el-icon-search" @click="$router.push({ path: '/search', query: { keyword: searchKeyword, from: 'home' } })"></el-button>
       </el-input>
     </div>
     
@@ -86,10 +86,11 @@ export default {
     async searchProducts() {
       if (this.searchKeyword.trim()) {
         try {
-          const res = await this.$http.post('/api/products/search', {
-            keyword: this.searchKeyword,        
+          const res = await this.$http.post('/good/list/page', {
+            goodName: this.searchKeyword,        
             pageNum: this.page,
-            pageSize: this.pageSize
+            pageSize: this.pageSize,
+            status:0
           })
           this.products = res.data
         } catch (error) {
@@ -106,7 +107,8 @@ export default {
         const res = await this.$http.post('/good/list/page', {
           pageNum: this.page,
           pageSize: this.pageSize,
-          categoryIds: this.activeCategory === 'all' ? null : [category.id]
+          categoryIds: this.activeCategory === 'all' ? null : [category.id],
+          status: 0
         })
         this.products = res.data.items
       } catch (error) {
@@ -122,7 +124,8 @@ export default {
         const res = await this.$http.post('/good/list/page', {
           pageNum: this.page,
           pageSize: this.pageSize,
-          categoryIds: this.activeCategory === 'all' ? null : [this.activeCategory]
+          categoryIds: this.activeCategory === 'all' ? null : [this.activeCategory],
+          status: 0
         })
         
         if (res.data.items && res.data.items.length > 0) {
@@ -155,7 +158,8 @@ export default {
       try {
         const res = await this.$http.post('/good/list/page', {
           pageNum: this.page,
-          pageSize: this.pageSize
+          pageSize: this.pageSize,
+          status: 0
         })
         this.products = res.data.items
       } catch (error) {

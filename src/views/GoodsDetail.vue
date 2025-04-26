@@ -54,14 +54,14 @@
         
         <div class="goods-actions">
           <el-button 
-            v-if="goodsDetail.creatorId !== currentUserId"
+            v-if="goodsDetail.creatorId != currentUser.id"
             type="success" 
             size="large" 
             @click="handleBuyNow">
             立即购买
           </el-button>
           <el-button 
-            v-if="goodsDetail.creatorId === currentUserId"
+            v-if="goodsDetail.creatorId == currentUser.id"
             type="primary" 
             size="large" 
             @click="handleEditGoods">
@@ -111,11 +111,16 @@ export default {
         description: '',
         detail: ''
       },
-      currentUserId: ''
+      currentUser: ''
     };
   },
   created() {
-    this.currentUserId = localStorage.getItem('userId') || '';
+    try {
+      this.currentUser = JSON.parse(localStorage.getItem('userInfo')) || {};
+    } catch (error) {
+      this.currentUser = {};
+      console.error('解析用户信息失败', error);
+    }
     this.getGoodsDetail();
   },
   methods: {

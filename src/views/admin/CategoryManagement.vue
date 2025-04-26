@@ -6,14 +6,27 @@
         <el-button type="primary" size="mini" style="float: right" @click="handleAdd">新增分类</el-button>
       </div>
       
-      <el-table :data="categoryList" border style="width: 100%">
-        <el-table-column :prop="'id'" label="ID" width="80">
+      <el-table :data="categoryList" border style="width: 100%" cell-style="{textAlign: 'center'}">
+        <el-table-column :prop="'id'" label="ID" width="180">
         <template slot-scope="scope">
         {{ String(scope.row.id) }}
         </template>
         </el-table-column>
-        <el-table-column prop="categoryName" label="分类名称"></el-table-column>
-        <el-table-column prop="description" label="描述"></el-table-column>
+        <el-table-column prop="categoryName" label="分类名称">
+          <template slot-scope="scope">
+            {{ scope.row.categoryName || '-' }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="parentName" label="父分类">
+          <template slot-scope="scope">
+            {{ scope.row.parentName || '-' }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="type" label="类型">
+          <template slot-scope="scope">
+            {{ scope.row.type || '-' }}
+          </template>
+        </el-table-column>
         <el-table-column label="操作" width="180">
           <template slot-scope="scope">
             <el-button size="mini" @click="handleEdit(scope.row)">编辑</el-button>
@@ -38,8 +51,8 @@
         <el-form-item label="分类名称" prop="name">
           <el-input v-model="categoryForm.name"></el-input>
         </el-form-item>
-        <el-form-item label="描述" prop="description">
-          <el-input type="textarea" v-model="categoryForm.description"></el-input>
+        <el-form-item label="父分类" prop="parentId">
+          <category-cascader v-model="categoryForm.parentId"></category-cascader>
         </el-form-item>
       </el-form>
       <span slot="footer" class="dialog-footer">
@@ -51,8 +64,13 @@
 </template>
 
 <script>
+import CategoryCascader from '@/components/CategoryCascader.vue';
+
 export default {
   name: 'CategoryManagement',
+  components: {
+    CategoryCascader
+  },
   data() {
     return {
       categoryList: [],
@@ -66,8 +84,10 @@ export default {
       categoryForm: {
         id: '',
         name: '',
-        description: ''
+        parentId: null,
+        type: '0'
       },
+      categoryOptions: [],
       rules: {
         name: [{ required: true, message: '请输入分类名称', trigger: 'blur' }]
       }
@@ -78,15 +98,14 @@ export default {
   },
   methods: {
     getCategoryList() {
-      this.$http.get('/category/list', {
-        params: {
-          page: this.pagination.current,
-          size: this.pagination.size
-        }
+      this.$http.post('/category/list/page', {
+          pageNum: this.pagination.current,
+          pageSize: this.pagination.size
+        
       }).then(res => {
-        if (res.code === 200) {
-          this.categoryList = res.data.records.map(item => ({ ...item, id: String(item.id) }));
-          this.pagination.total = res.data.total;
+        if (res.code === 200 && res.data) {
+          this.categoryList = res.data?.items ? res.data.items.map(item => ({ ...item, id: String(item.id) })) : [];
+          this.pagination.total = res.data?.total || 0;
         }
       });
     },
@@ -122,9 +141,13 @@ export default {
     submitForm() {
       this.$refs.categoryForm.validate(valid => {
         if (valid) {
-          const api = this.categoryForm.id ? '/category/update' : '/category/add';
-          const data = { ...this.categoryForm, id: String(this.categoryForm.id) };
-          this.$http.post(api, data).then(res => {
+          const data = {
+            categoryName: this.categoryForm.name,
+            parentId: Array.isArray(this.categoryForm.parentId) ? this.categoryForm.parentId[this.categoryForm.parentId.length - 1] : null,
+            type: '0',
+            id: this.categoryForm.id ? String(this.categoryForm.id) : undefined
+          };
+          this.$http.post('/category/save', data).then(res => {
             if (res.code === 200) {
               this.$message.success('操作成功');
               this.dialogVisible = false;

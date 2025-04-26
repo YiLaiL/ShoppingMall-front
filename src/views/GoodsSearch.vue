@@ -68,7 +68,9 @@
               </div>
               <div class="card-desc">{{ item.description }}</div>
               <div class="card-actions">
-                <el-button size="small" @click="handleEdit(item)">编辑</el-button>
+                <el-button size="small" :type="item.status === '下架' ? 'success' : 'primary'" @click="handleOffShelf(item)">
+                  {{ item.status === "下架" ? '上架' : '下架' }}
+                </el-button>
                 <el-button size="small" type="danger" @click="handleDelete(String(item.id))">删除</el-button>
               </div>
             </div>
@@ -181,16 +183,24 @@ export default {
       this.searchForm.pageNum = val;
       this.searchGoods();
     },
-    handleEdit(row) {
-      // 编辑商品逻辑
-      console.log('编辑商品:', row);
-    },
     handleDelete(id) {
       // 删除商品逻辑
-      this.$http.delete('/good/delete', { params: { GoodId: String(id) } })
+      this.$http.delete('/good/delete', { params: { id: String(id) } })
         .then(res => {
           if (res.code === 200) {
             this.$message.success('删除成功');
+            this.handleSearch();
+          }
+        });
+    },
+    
+    handleOffShelf(item) {
+      const newStatus = item.status === "下架" ? 0 : 1;
+      const actionText = newStatus === "下架" ? '下架' : '上架';
+      this.$http.put('/good/update', { id: String(item.id), status: newStatus })
+        .then(res => {
+          if (res.code === 200) {
+            this.$message.success(`${actionText}成功`);
             this.handleSearch();
           }
         });

@@ -160,6 +160,10 @@
         <i class="el-icon-s-home"></i>
         <span>首页</span>
       </div>
+      <div class="nav-item" @click="$router.push('/orders')">
+        <i class="el-icon-tickets"></i>
+        <span>订单</span>
+      </div>
       <div class="nav-item active">
         <i class="el-icon-user"></i>
         <span>我的</span>
@@ -513,6 +517,8 @@ export default {
         .then(res => {
           if (res.code === 200) {
             this.userInfo = res.data;
+            // 将用户信息保存到本地存储
+            localStorage.setItem('userInfo', JSON.stringify(res.data));
           }
         })
         .catch(err => {

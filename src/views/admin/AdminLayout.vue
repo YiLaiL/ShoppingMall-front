@@ -20,6 +20,10 @@
             <i class="el-icon-location"></i>
             <span>地点管理</span>
           </el-menu-item>
+          <el-menu-item index="/admin/permission">
+            <i class="el-icon-lock"></i>
+            <span>权限管理</span>
+          </el-menu-item>
         </el-menu>
       </el-aside>
       

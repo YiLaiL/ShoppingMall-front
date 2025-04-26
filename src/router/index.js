@@ -37,6 +37,12 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
+    path: '/orders',
+    name: 'Orders',
+    component: () => import('../views/Orders.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
     path: '/admin',
     component: () => import('../views/admin/AdminLayout.vue'),
     meta: { requiresAuth: true },
@@ -55,6 +61,11 @@ const routes = [
         path: 'location',
         name: 'LocationManagement',
         component: () => import('../views/admin/LocationManagement.vue')
+      },
+      {
+        path: 'permission',
+        name: 'PermissionManagement',
+        component: () => import('../views/admin/PermissionManagement.vue')
       }
     ]
   }

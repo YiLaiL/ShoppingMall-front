@@ -57,7 +57,6 @@ export default {
   data() {
     return {
       dialogVisible: this.value,
-      dialogTitle: '编辑收货地址',
       form: {
         id: null,
         receiverName: '',

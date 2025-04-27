@@ -26,19 +26,34 @@
     
     <!-- 订单列表 -->
     <el-table :data="orderList" border style="width: 100%" class="order-table">
-      <el-table-column prop="orderNo" label="订单编号" width="180"></el-table-column>
-      <el-table-column prop="createTime" label="下单时间" width="180"></el-table-column>
-      <el-table-column prop="totalAmount" label="总金额"></el-table-column>
-      <el-table-column prop="status" label="状态" :formatter="formatStatus"></el-table-column>
-      <el-table-column label="操作" width="180">
+      <el-table-column prop="id" label="订单编号" ></el-table-column>
+      <el-table-column prop="goodName" label="商品名称" width="180"></el-table-column>
+      <el-table-column prop="purchaseNum" width="180" label="交易数量"></el-table-column>
+      <el-table-column prop="total" width="180"  label="总金额"></el-table-column>
+      <el-table-column prop="status" width="180" label="状态" :formatter="formatStatus"></el-table-column>
+      <el-table-column label="操作" width="250">
         <template slot-scope="scope">
           <el-button size="mini" @click="handleView(scope.row)">查看</el-button>
           <el-button 
             size="mini" 
+            type="primary" 
+            @click="handlePay(scope.row)"
+            v-if="scope.row.status === '待支付'">
+            支付
+          </el-button>
+          <el-button 
+            size="mini" 
             type="danger" 
             @click="handleCancel(scope.row)"
-            v-if="scope.row.status === 'pending'">
+            v-if="scope.row.status === '待支付'">
             取消
+          </el-button>
+          <el-button 
+            size="mini" 
+            type="danger" 
+            @click="handleGet(scope.row)"
+            v-if="scope.row.status === '待收货'">
+            确认收货
           </el-button>
         </template>
       </el-table-column>
@@ -78,19 +93,20 @@
         </el-card>
         
         <el-table :data="productOrderList" border style="width: 100%" class="order-table">
-          <el-table-column prop="orderNo" label="订单编号" width="180"></el-table-column>
-          <el-table-column prop="createTime" label="下单时间" width="180"></el-table-column>
-          <el-table-column prop="totalAmount" label="总金额"></el-table-column>
-          <el-table-column prop="status" label="状态" :formatter="formatStatus"></el-table-column>
-          <el-table-column label="操作" width="180">
+          <el-table-column prop="id" label="订单编号" ></el-table-column>
+      <el-table-column prop="goodName" label="商品名称" width="180"></el-table-column>
+      <el-table-column prop="purchaseNum"width="180" label="交易数量"></el-table-column>
+      <el-table-column prop="total" width="180" label="总金额"></el-table-column>
+      <el-table-column prop="status" width="180" label="状态" :formatter="formatStatus"></el-table-column>
+        <el-table-column label="操作" width="250">
             <template slot-scope="scope">
               <el-button size="mini" @click="handleView(scope.row)">查看</el-button>
               <el-button 
                 size="mini" 
-                type="danger" 
-                @click="handleCancel(scope.row)"
-                v-if="scope.row.status === 'pending'">
-                取消
+                type="primary" 
+                @click="handleSend(scope.row)"
+                v-if="scope.row.status === '待发货'">
+                发货
               </el-button>
             </template>
           </el-table-column>
@@ -185,11 +201,11 @@ export default {
       productOrderList: [],
       addressList: [],
       orderStatusOptions: [
-        { value: 'pending', label: '待支付' },
-        { value: 'paid', label: '已支付' },
-        { value: 'shipped', label: '已发货' },
-        { value: 'completed', label: '已完成' },
-        { value: 'cancelled', label: '已取消' }
+        { value: 0, label: '待支付' },
+        { value: 1, label: '待发货' },
+        { value: 2, label: '待收货' },
+        { value: 3, label: '已完成' },
+        { value: 4, label: '已取消' }
       ],
       pagination: {
         current: 1,
@@ -213,6 +229,8 @@ export default {
     activeTab(newVal) {
       if (newVal === 'addressInfo') {
         this.fetchDeliveryInfo()
+      } else if (newVal === 'productOrders') {
+        this.fetchOrderList()
       }
     }
   },
@@ -252,39 +270,40 @@ export default {
     },
     fetchOrderList() {
       if (this.activeTab === 'myOrders') {
-        // 模拟获取我的订单数据
-        this.orderList = [
-          {
-            orderNo: '202306010001',
-            createTime: '2023-06-01 10:00:00',
-            totalAmount: 199.99,
-            status: 'paid'
-          },
-          {
-            orderNo: '202306010002',
-            createTime: '2023-06-01 11:00:00',
-            totalAmount: 299.99,
-            status: 'shipped'
+        this.$http.post('/order/list/page/own', {
+          pageNum: this.pagination.current,
+          pageSize: this.pagination.size,
+          sortBy: "",
+          isAsc: false,
+          userId: null,
+          businessId: null,
+          status: this.filterForm.status
+        }).then(response => {
+          if (response.code === 200) {
+            this.orderList = response.data.items
+            this.pagination.total = response.data.total
           }
-        ]
-      } else {
-        // 模拟获取商品订单数据
-        this.productOrderList = [
-          {
-            orderNo: '202306020001',
-            createTime: '2023-06-02 10:00:00',
-            totalAmount: 399.99,
-            status: 'completed'
-          },
-          {
-            orderNo: '202306020002',
-            createTime: '2023-06-02 11:00:00',
-            totalAmount: 499.99,
-            status: 'cancelled'
+        }).catch(error => {
+          this.$message.error('获取订单列表失败：' + error.message)
+        })
+      } else if (this.activeTab === 'productOrders') {
+        this.$http.post('/order/list/page/client', {
+          pageNum: this.pagination.current,
+          pageSize: this.pagination.size,
+          sortBy: "",
+          isAsc: false,
+          userId: null,
+          businessId: null,
+          status: this.filterForm.status
+        }).then(response => {
+          if (response.code === 200) {
+            this.productOrderList = response.data.items
+            this.pagination.total = response.data.total
           }
-        ]
+        }).catch(error => {
+          this.$message.error('获取商品订单列表失败：' + error.message)
+        })
       }
-      this.pagination.total = 2
     },
     handleFilter() {
       this.pagination.current = 1
@@ -307,17 +326,29 @@ export default {
       return statusMap[row.status] || row.status
     },
     handleView(row) {
-      this.currentOrderId = row.orderNo
+      this.currentOrderId = row.id
       this.dialogVisible = true
     },
-    handleCancel(row) {
-      this.$confirm('确定要取消该订单吗?', '提示', {
+    handlePay(row) {
+      this.$confirm('确定要支付该订单吗?', '提示', {
         confirmButtonText: '确定',
         cancelButtonText: '取消',
         type: 'warning'
       }).then(() => {
-        this.$message.success('订单已取消')
-        row.status = 'cancelled'
+        this.$http.put('/order/update/shipping', null, {
+          params: {
+            id: String(row.id)
+          }
+        }).then(response => {
+          if (response.code === 200) {
+            this.$message.success('订单支付成功')
+            row.status = 'paid'
+          } else {
+            this.$message.error(response.message || '支付失败')
+          }
+        }).catch(error => {
+          this.$message.error('支付失败：' + error.message)
+        })
       }).catch(() => {
         this.$message.info('已取消操作')
       })
@@ -329,6 +360,78 @@ export default {
     handleCurrentChange(val) {
       this.pagination.current = val
       this.fetchOrderList()
+    },
+    handleSend(row) {
+      this.$confirm('确定要发货吗?', '提示', {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }).then(() => {
+        this.$http.put('/order/update/receiving', null, {
+          params: {
+            id: String(row.id)
+          }
+        }).then(response => {
+          if (response.code === 200) {
+            this.$message.success('发货成功')
+            row.status = 'paid'
+          } else {
+            this.$message.error(response.message || '发货失败')
+          }
+        }).catch(error => {
+          this.$message.error('支付失败：' + error.message)
+        })
+      }).catch(() => {
+        this.$message.info('已取消操作')
+      })
+    },
+    handleGet(row) {
+      this.$confirm('确定要确认收货吗?', '提示', {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }).then(() => {
+        this.$http.put('/order/update/completed', null, {
+          params: {
+            id: String(row.id)
+          }
+        }).then(response => {
+          if (response.code === 200) {
+            this.$message.success('收货成功')
+            row.status = 'paid'
+          } else {
+            this.$message.error(response.message || '收货失败')
+          }
+        }).catch(error => {
+          this.$message.error('支付失败：' + error.message)
+        })
+      }).catch(() => {
+        this.$message.info('已取消操作')
+      })
+    },
+    handleCancel(row) {
+      this.$confirm('确定要取消该订单吗?', '提示', {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }).then(() => {
+        this.$http.put('/order/update/canceled', null, {
+          params: {
+            id: String(row.id)
+          }
+        }).then(response => {
+          if (response.code === 200) {
+            this.$message.success('订单取消成功')
+            row.status = 'cancelled'
+          } else {
+            this.$message.error(response.message || '取消失败')
+          }
+        }).catch(error => {
+          this.$message.error('取消失败：' + error.message)
+        })
+      }).catch(() => {
+        this.$message.info('已取消操作')
+      })
     },
     
     fetchDeliveryInfo() {

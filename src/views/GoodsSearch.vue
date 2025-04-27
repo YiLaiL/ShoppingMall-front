@@ -141,7 +141,7 @@ export default {
         ...this.searchForm,
         // categoryIds: this.searchForm.categoryIds=this.searchForm.categoryIds[this.searchForm.categoryIds.length-1]
       };
-      this.$http.post('/good/list/own', requestData)
+      this.$http.post('/good/list', requestData)
         .then(res => {
          if (res && res.code === 200) {
             this.goodsList = res.data.items;

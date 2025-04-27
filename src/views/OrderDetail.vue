@@ -10,16 +10,12 @@
       
       <div class="order-base-info">
         <div class="info-item">
-          <span class="label">下单时间：</span>
-          <span>{{ orderInfo.createTime }}</span>
-        </div>
-        <div class="info-item">
           <span class="label">订单状态：</span>
           <span>{{ formattedStatus }}</span>
         </div>
         <div class="info-item">
           <span class="label">总金额：</span>
-          <span>¥{{ orderInfo.totalAmount }}</span>
+          <span>¥{{ orderInfo.total }}</span>
         </div>
       </div>
       
@@ -27,11 +23,11 @@
       
       <div class="order-goods-info">
         <h3>商品信息</h3>
-        <el-table :data="orderInfo.goodsList" border style="width: 100%">
-          <el-table-column prop="goodsName" label="商品名称"></el-table-column>
-          <el-table-column prop="price" label="单价" width="120"></el-table-column>
-          <el-table-column prop="quantity" label="数量" width="80"></el-table-column>
-          <el-table-column prop="subtotal" label="小计" width="120"></el-table-column>
+        <el-table :data="[orderInfo]" border style="width: 100%">
+          <el-table-column prop="goodName" label="单价"></el-table-column>
+          <el-table-column prop="price" label="单价" width="180"></el-table-column>
+          <el-table-column prop="purchaseNum" label="数量" width="180"></el-table-column>
+         
         </el-table>
       </div>
       
@@ -41,15 +37,15 @@
         <h3>收货信息</h3>
         <div class="info-item">
           <span class="label">收货人：</span>
-          <span>{{ orderInfo.receiverName }}</span>
+          <span>{{ orderInfo.consigneeName }}</span>
         </div>
         <div class="info-item">
           <span class="label">联系电话：</span>
-          <span>{{ orderInfo.receiverPhone }}</span>
+          <span>{{ orderInfo.phone }}</span>
         </div>
         <div class="info-item">
           <span class="label">收货地址：</span>
-          <span>{{ orderInfo.receiverAddress }}</span>
+          <span>{{ orderInfo.province }} {{ orderInfo.city }} {{ orderInfo.county }} {{ orderInfo.address }}</span>
         </div>
       </div>
     </el-card>
@@ -68,14 +64,17 @@ export default {
   data() {
     return {
       orderInfo: {
-        orderNo: '',
-        createTime: '',
-        totalAmount: 0,
-        status: '',
-        goodsList: [],
-        receiverName: '',
-        receiverPhone: '',
-        receiverAddress: ''
+        id: '',
+        total:'',
+        status: '',  
+        price:'',    
+        purchaseNum:'',
+        consigneeName: '',
+        phone: '',
+        province: '',
+        city: '',
+        county: '',
+        address: ''
       }
     }
   },
@@ -106,30 +105,19 @@ export default {
   },
   methods: {
     fetchOrderDetail() {
-      // 模拟获取订单详情数据
-      this.orderInfo = {
-        orderNo: this.orderId,
-        createTime: '2023-06-01 10:00:00',
-        totalAmount: 199.99,
-        status: 'paid',
-        goodsList: [
-          {
-            goodsName: '示例商品1',
-            price: 99.99,
-            quantity: 1,
-            subtotal: 99.99
-          },
-          {
-            goodsName: '示例商品2',
-            price: 50.00,
-            quantity: 2,
-            subtotal: 100.00
-          }
-        ],
-        receiverName: '张三',
-        receiverPhone: '13800138000',
-        receiverAddress: '北京市海淀区中关村大街1号'
-      }
+      this.$http.get(`/order/detail`, { params: { id: this.orderId } }).then(response => {
+        if (response && response.code === 200) {
+          console.log('订单详情API返回数据:', response.data)
+          this.orderInfo = response.data
+          console.log('订单详情API返回数据:', response.data)
+        } else {
+          const errorMsg = response?.message || '未知错误'
+          this.$message.error('获取订单详情失败：' + errorMsg)
+        }
+      }).catch(error => {
+        const errorMsg = error?.response?.data?.message || error?.message || '网络错误'
+        this.$message.error('获取订单详情失败：' + errorMsg)
+      })
     }
   }
 }

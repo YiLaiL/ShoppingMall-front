@@ -60,6 +60,38 @@
             @click="handleBuyNow">
             立即购买
           </el-button>
+          
+          <el-dialog title="购买商品" :visible.sync="dialogVisible" width="30%">
+            <div style="margin-bottom: 20px">
+              <span style="margin-right: 10px">购买数量：</span>
+              <el-input-number 
+                v-model="quantity" 
+                :min="1" 
+                :max="goodsDetail.stockNum" 
+                @change="calculateTotal"
+              />
+            </div>
+            
+            <div style="margin-bottom: 20px">
+              <span style="margin-right: 10px">配送地址：</span>
+              <el-select v-model="selectedAddressId" placeholder="请选择配送地址" style="width: 100%">
+                <el-option
+                  v-for="address in addressList"
+                  :key="address.id"
+                  :label="`${address.province} ${address.city} ${address.county}`"
+                  :value="address.id">
+                </el-option>
+              </el-select>
+            </div>
+            
+            <div style="margin-bottom: 20px; font-size: 16px">
+              总价：¥{{ totalPrice }}
+            </div>
+            <span slot="footer" class="dialog-footer">
+              <el-button @click="dialogVisible = false">取消</el-button>
+              <el-button type="primary" @click="handleConfirmBuy">确认购买</el-button>
+            </span>
+          </el-dialog>
           <el-button 
             v-if="goodsDetail.creatorId == currentUser.id"
             type="primary" 
@@ -111,7 +143,12 @@ export default {
         description: '',
         detail: ''
       },
-      currentUser: ''
+      currentUser: '',
+      dialogVisible: false,
+      quantity: 1,
+      totalPrice: 0,
+      selectedAddressId: '',
+      addressList: []
     };
   },
   created() {
@@ -146,8 +183,49 @@ export default {
       this.$message.success('已加入购物车');
     },
     handleBuyNow() {
-      // 立即购买逻辑
-      this.$message.success('立即购买');
+      this.dialogVisible = true;
+      this.quantity = 1;
+      this.calculateTotal();
+      this.getAddressList();
+    },
+    
+    getAddressList() {
+      this.$http.get('/delivery/list')
+        .then(res => {
+          if (res.code === 200) {
+            this.addressList = res.data;
+          }
+        })
+        .catch(err => {
+          this.$message.error('获取地址列表失败');
+          console.error(err);
+        });
+    },
+    calculateTotal() {
+      this.totalPrice = this.quantity * this.goodsDetail.price;
+    },
+    handleConfirmBuy() {
+      if (this.quantity > this.goodsDetail.stockNum) {
+        this.$message.error('购买数量不能超过库存');
+        return;
+      }
+      
+      this.$http.post('/order/save', {
+        goodId: this.goodsDetail.id,
+        deliveryId: this.selectedAddressId,
+        purchaseNum: this.quantity,
+      }).then(res => {
+        if (res.code === 200) {
+          this.dialogVisible = false;
+          this.$message.success(`订单已创建，总价¥${this.totalPrice}`);
+          // 这里可以添加支付确认弹窗逻辑
+        } else {
+          this.$message.error(res.message || '创建订单失败');
+        }
+      }).catch(err => {
+        this.$message.error('创建订单失败');
+        console.error(err);
+      });
     },
     handleEditGoods() {
       // 编辑商品逻辑

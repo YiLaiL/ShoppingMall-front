@@ -180,11 +180,17 @@ export default {
             code: ''
           }).then(response => {
             // 存储token到localStorage
-            if (response && response.data) {
-              localStorage.setItem('authToken', response.data)
+            if (response) {
+              localStorage.setItem('authToken', response.data.token)
+              // 根据type字段跳转不同页面
+              if (response.data.type === 0) {
+                this.$router.replace('/home')
+              } else if (response.data.type === 2) {
+                this.$router.replace('/admin')
+              } else {
+                this.$router.replace(this.$route.query.redirect || '/home')
+              }
             }
-            // 使用replace而不是push来避免导航守卫的重定向问题
-            this.$router.replace(this.$route.query.redirect || '/home')
           }).catch(error => {
             // 移除本地错误提示，由全局拦截器处理
             // const errMsg = error && error.response && error.response.data && error.response.data.msg 
@@ -208,11 +214,17 @@ export default {
             }
           }).then(response => {
             // 存储token到localStorage
-            if (response && response.data) {
+            if (response) {
               localStorage.setItem('authToken', response.data)
+              // 根据type字段跳转不同页面
+              if (response.data.type === 0 || response.data.type === 1) {
+                this.$router.replace('/home')
+              } else if (response.data.type === 2) {
+                this.$router.replace('/admin')
+              } else {
+                this.$router.replace(this.$route.query.redirect || '/home')
+              }
             }
-            // 使用replace而不是push来避免导航守卫的重定向问题
-            this.$router.replace(this.$route.query.redirect || '/home')
           }).catch(error => {
             // 移除本地错误提示，由全局拦截器处理
             // const errMsg = error && error.response && error.response.data && error.response.data.msg 

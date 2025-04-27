@@ -20,29 +20,7 @@
     <!-- 我的商品和发布商品 -->
     <el-tabs v-model="activeTab" class="main-tabs">
       <el-tab-pane label="我的商品" name="myProducts">
-        <div class="product-list" v-if="myProducts.length > 0">
-          <el-row :gutter="20">
-            <el-col :xs="12" :sm="8" :md="6" :lg="6" v-for="(product, index) in myProducts" :key="index">
-              <el-card class="product-card" shadow="hover">
-                <div class="product-img">
-                  <img :src="product.image" alt="商品图片">
-                </div>
-                <div class="product-info">
-                  <h3 class="product-title">{{ product.title }}</h3>
-                  <p class="product-price">¥{{ product.price }}</p>
-                  <p class="product-status">状态: {{ product.status }}</p>
-                </div>
-                <div class="product-actions">
-                  <el-button type="text" size="small" @click="editProduct(product)">编辑</el-button>
-                  <el-button type="text" size="small" @click="deleteProduct(product.id)">删除</el-button>
-                </div>
-              </el-card>
-            </el-col>
-          </el-row>
-        </div>
-        <div class="empty-data" v-else>
-          <el-empty description="暂无发布的商品"></el-empty>
-        </div>
+        <GoodsSearch />
       </el-tab-pane>
       
       <el-tab-pane label="发布商品" name="publishProduct">
@@ -55,34 +33,35 @@
             <el-input-number v-model="productForm.price" :min="0" :precision="2" :step="10"></el-input-number>
           </el-form-item>
           
+          <el-form-item label="库存" prop="stock">
+            <el-input-number v-model="productForm.stock" :min="1" :step="1"></el-input-number>
+          </el-form-item>
+          
           <el-form-item label="分类" prop="category">
-            <el-select v-model="productForm.category" placeholder="请选择商品分类">
-              <el-option label="数码产品" value="digital"></el-option>
-              <el-option label="服装" value="clothing"></el-option>
-              <el-option label="家居" value="home"></el-option>
-              <el-option label="图书" value="books"></el-option>
+            <CategoryCascader v-model="productForm.category" />
+          </el-form-item>
+          
+          <el-form-item label="标签" prop="tagId">
+            <el-select v-model="productForm.tagId" placeholder="请选择商品标签">
+              <el-option 
+                v-for="tag in tags" 
+                :key="String(tag.id)" 
+                :label="tag.tagName" 
+                :value="String(tag.id)">
+              </el-option>
             </el-select>
           </el-form-item>
           
-          <el-form-item label="地点" prop="location">
-            <el-input v-model="productForm.location" placeholder="请输入商品所在地"></el-input>
-          </el-form-item>
           
           <el-form-item label="图片" prop="image">
-            <el-upload
-              class="upload-demo"
-              action="#"
-              :auto-upload="false"
-              :on-change="handleImageChange"
-              :limit="1"
-              list-type="picture">
-              <el-button size="small" type="primary">点击上传</el-button>
-              <div slot="tip" class="el-upload__tip">只能上传jpg/png文件，且不超过2MB</div>
-            </el-upload>
+            <SingleUpload v-model="productForm.image" />
           </el-form-item>
           
           <el-form-item label="描述" prop="description">
             <el-input type="textarea" v-model="productForm.description" :rows="4" placeholder="请输入商品描述"></el-input>
+          </el-form-item>
+          <el-form-item label="细节补充" prop="detail">
+            <el-input type="textarea" v-model="productForm.detail" :rows="4" placeholder="请输入商品细节补充信息"></el-input>
           </el-form-item>
           
           <el-form-item>
@@ -181,6 +160,10 @@
         <i class="el-icon-s-home"></i>
         <span>首页</span>
       </div>
+      <div class="nav-item" @click="$router.push('/orders')">
+        <i class="el-icon-tickets"></i>
+        <span>订单</span>
+      </div>
       <div class="nav-item active">
         <i class="el-icon-user"></i>
         <span>我的</span>
@@ -191,10 +174,15 @@
 
 <script>
 import SingleUpload from '../components/SingleUpload.vue'
+import CategoryCascader from '../components/CategoryCascader.vue'
+import GoodsSearch from './GoodsSearch.vue'
+
 export default {
   name: 'Profile',
   components: {
-    SingleUpload
+    SingleUpload,
+    CategoryCascader,
+    GoodsSearch
   },
   data() {
     // 邮箱验证规则
@@ -210,8 +198,11 @@ export default {
     }
     
     return {
+      categories: [],
+      tags: [],
 
       userInfo: {
+        id: '',
         username: '',
         email: '',
         avatar: ''
@@ -284,10 +275,14 @@ export default {
       productForm: {
         title: '',
         price: 0,
-        category: '',
+        stock: 1,
+        category: [],
+        tagId: '',
         location: '',
+        address: [],
         image: '',
-        description: ''
+        description: '',
+        detail: ''
       },
       productRules: {
         title: [
@@ -297,8 +292,15 @@ export default {
         price: [
           { required: true, message: '请输入商品价格', trigger: 'blur' }
         ],
+        stock: [
+          { required: true, message: '请输入库存数量', trigger: 'blur' },
+          { type: 'number', min: 1, message: '库存不能少于1', trigger: 'blur' }
+        ],
         category: [
           { required: true, message: '请选择商品分类', trigger: 'change' }
+        ],
+        tagId: [
+          { required: true, message: '请选择商品标签', trigger: 'change' }
         ],
         location: [
           { required: true, message: '请输入商品所在地', trigger: 'blur' }
@@ -308,6 +310,9 @@ export default {
         ],
         description: [
           { required: true, message: '请输入商品描述', trigger: 'blur' }
+        ],
+        detail: [
+          { max: 1000, message: '细节补充不能超过1000个字符', trigger: 'blur' }
         ]
       }
     }
@@ -317,6 +322,8 @@ export default {
     this.getUserDetail();
     // 加载用户发布的商品
     this.loadMyProducts();
+    // 获取商品分类
+    this.loadCategories();
   },
   methods: {
     // 处理文件选择
@@ -510,6 +517,8 @@ export default {
         .then(res => {
           if (res.code === 200) {
             this.userInfo = res.data;
+            // 将用户信息保存到本地存储
+            localStorage.setItem('userInfo', JSON.stringify(res.data));
           }
         })
         .catch(err => {
@@ -536,29 +545,58 @@ export default {
         });
     },
     loadMyProducts() {
-      // 模拟获取用户发布的商品
-      this.myProducts = [
-        {
-          id: 101,
-          title: '二手iPhone 11 128GB 黑色',
-          price: 3999,
-          image: 'https://via.placeholder.com/200x200?text=iPhone11',
-          status: '在售',
-          category: 'digital',
-          location: '上海',
-          description: '使用一年，外观9成新，电池健康度90%，无维修记录。'
-        },
-        {
-          id: 102,
-          title: '耐克运动鞋 Air Max 270',
-          price: 599,
-          image: 'https://via.placeholder.com/200x200?text=Nike',
-          status: '在售',
-          category: 'clothing',
-          location: '北京',
-          description: '全新，买大了没穿过，尺码42.5。'
+      // 获取用户发布的商品
+      this.myProducts = []
+    },
+    
+    loadCategories() {
+      this.$http.get('/category/list', {
+        params: {
+          type: 0
         }
-      ]
+      })
+        .then(res => {
+          if (res.code === 200) {
+            this.categories = res.data;
+            this.loadTags();
+          }
+        })
+        .catch(err => {
+          console.error('获取分类失败:', err);
+        });
+    },
+    
+    loadTags() {
+      this.$http.get('/tag/list', {
+        params: {
+          type: 0
+        }
+      })
+        .then(res => {
+          if (res.code === 200) {
+            this.tags = res.data;
+            this.loadAddressOptions();
+          }
+        })
+        .catch(err => {
+          console.error('获取标签失败:', err);
+        });
+    },
+    
+    loadAddressOptions() {
+      this.$http.get('/address/tree')
+        .then(res => {
+          if (res.code === 200) {
+            this.addressOptions = res.data;
+          }
+        })
+        .catch(err => {
+          console.error('获取地址数据失败:', err);
+        });
+    },
+    
+    handleAddressChange(value) {
+      this.productForm.location = value.join(' ');
     },
     editProduct(product) {
       // 编辑商品，将商品信息填充到表单
@@ -566,20 +604,20 @@ export default {
       this.productForm = { ...product }
       this.$message.info('请在发布商品标签页修改商品信息')
     },
-    deleteProduct(productId) {
-      // 删除商品
-      this.$confirm('确定要删除这个商品吗?', '提示', {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning'
-      }).then(() => {
-        // 模拟删除操作
-        this.myProducts = this.myProducts.filter(item => item.id !== productId)
-        this.$message.success('删除成功')
-      }).catch(() => {
-        this.$message.info('已取消删除')
-      })
-    },
+    // deleteProduct(productId) {
+    //   // 删除商品
+    //   this.$confirm('确定要删除这个商品吗?', '提示', {
+    //     confirmButtonText: '确定',
+    //     cancelButtonText: '取消',
+    //     type: 'warning'
+    //   }).then(() => {
+    //     // 模拟删除操作
+    //     this.myProducts = this.myProducts.filter(item => String(item.id) !== String(productId))
+    //     this.$message.success('删除成功')
+    //   }).catch(() => {
+    //     this.$message.info('已取消删除')
+    //   })
+    // },
     handleImageChange(file) {
       // 处理商品图片上传
       const isImage = file.raw.type.indexOf('image/') !== -1
@@ -598,29 +636,34 @@ export default {
       this.productForm.image = URL.createObjectURL(file.raw)
     },
     submitProduct() {
-      this.$refs.productForm.validate((valid) => {
+      this.$refs.productForm.validate(valid => {
         if (valid) {
-          // 模拟提交商品信息
-          const newProduct = {
-            ...this.productForm,
-            id: Date.now(), // 模拟ID生成
-            status: '在售'
-          }
-          
-          // 如果是编辑模式，则更新商品
-          const existingIndex = this.myProducts.findIndex(p => p.id === newProduct.id)
-          if (existingIndex !== -1) {
-            this.myProducts.splice(existingIndex, 1, newProduct)
-            this.$message.success('商品更新成功')
-          } else {
-            // 否则添加新商品
-            this.myProducts.unshift(newProduct)
-            this.$message.success('商品发布成功')
-          }
-          
-          // 重置表单并切换到我的商品标签
-          this.resetProductForm()
-          this.activeTab = 'myProducts'
+          const params = {
+            goodName: this.productForm.title,
+            coverUrl: this.productForm.image,
+            price: this.productForm.price,
+            stockNum: this.productForm.stock,
+            status: "0",
+            type: "0",
+            categoryId: String(this.productForm.category[this.productForm.category.length - 1]),
+            tagId: String(this.productForm.tagId),
+            description: this.productForm.description,
+            detail: this.productForm.detail
+          };
+          this.$http.post('/good/save', params)
+            .then(res => {
+              if (res.code === 200) {
+                this.$message.success('商品发布成功')
+                this.resetProductForm()
+                this.activeTab = 'myProducts'
+                this.loadMyProducts() // 重新加载商品列表
+              } else {
+                this.$message.error(res.msg || '发布失败')
+              }
+            })
+            .catch(() => {
+              this.$message.error('发布失败')
+            })
         } else {
           this.$message.error('请完善商品信息')
           return false
@@ -635,8 +678,8 @@ export default {
       this.$refs.editForm.validate(valid => {
         if (!valid) return;
         const requestData = {
-          id: this.userInfo.id,
-          studentId: this.userInfo.studentId || '',
+          id: String(this.userInfo.id),
+          studentId: this.userInfo.studentId ? String(this.userInfo.studentId) : '',
           username: this.editForm.username,
           phone: this.editForm.phone,
           avatar: this.editForm.avatar,

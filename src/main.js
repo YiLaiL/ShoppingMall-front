@@ -11,12 +11,16 @@ Vue.use(ElementUI)
 // 配置axios
 // 添加axios全局配置
 const instance = axios.create({
-  baseURL: process.env.VUE_APP_API_BASE_URL,
+  baseURL: process.env.VUE_APP_API_BASE_URL || 'http://localhost:8080',
   timeout: 10000
 })
 
 // 请求拦截器
 instance.interceptors.request.use(config => {
+  if (!config.baseURL) {
+    console.error('Axios baseURL is not configured properly');
+    return Promise.reject(new Error('API base URL is not configured'));
+  }
   const token = localStorage.getItem('authToken')
   if (token) {
     config.headers.Authorization = `${token}`

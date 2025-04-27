@@ -6,20 +6,17 @@
         placeholder="搜索商品"
         prefix-icon="el-icon-search"
         v-model="searchKeyword"
-        @keyup.enter.native="searchProducts"
+        @keyup.enter.native="$router.push({ path: '/search', query: { keyword: searchKeyword, from: 'home' } })"
       >
-        <el-button slot="append" icon="el-icon-search" @click="searchProducts"></el-button>
+        <el-button slot="append" icon="el-icon-search" @click="$router.push({ path: '/search', query: { keyword: searchKeyword, from: 'home' } })"></el-button>
       </el-input>
     </div>
     
     <!-- 商品分类 -->
     <div class="category-tabs">
-      <el-tabs v-model="activeCategory" @tab-click="handleCategoryChange">
+      <el-tabs v-model="activeCategory" @tab-click="handleCategoryChange" :animated="false" :lazy="true">
         <el-tab-pane label="全部" name="all"></el-tab-pane>
-        <el-tab-pane label="数码产品" name="digital"></el-tab-pane>
-        <el-tab-pane label="服装" name="clothing"></el-tab-pane>
-        <el-tab-pane label="家居" name="home"></el-tab-pane>
-        <el-tab-pane label="图书" name="books"></el-tab-pane>
+        <el-tab-pane v-for="category in categories" :key="category.id" :label="category.name" :name="category.id"></el-tab-pane>
       </el-tabs>
     </div>
     
@@ -29,14 +26,19 @@
         <el-col :xs="12" :sm="8" :md="6" :lg="6" v-for="(product, index) in products" :key="index">
           <el-card class="product-card" shadow="hover">
             <div class="product-img">
-              <img :src="product.image" alt="商品图片">
+              <img :src="product.coverUrl" alt="商品图片" @click="$router.push(`/goods/detail/${product.id}`)">
             </div>
             <div class="product-info">
-              <h3 class="product-title">{{ product.title }}</h3>
+              <h3 class="product-title">{{ product.goodName }}</h3>
               <p class="product-price">¥{{ product.price }}</p>
-              <p class="product-location">
-                <i class="el-icon-location"></i> {{ product.location }}
-              </p>
+              <div class="product-tags">
+                <el-tag size="mini">{{ product.categoryName }}</el-tag>
+                <el-tag size="mini" type="success">{{ product.tagName }}</el-tag>
+              </div>
+              <div class="product-meta">
+                <span><i class="el-icon-box"></i> {{ product.stockNum }}件</span>
+                <span><i class="el-icon-sold-out"></i> {{ product.saleNum }}件</span>
+              </div>
             </div>
           </el-card>
         </el-col>
@@ -54,6 +56,10 @@
         <i class="el-icon-s-home"></i>
         <span>首页</span>
       </div>
+      <div class="nav-item" @click="$router.push('/orders')">
+        <i class="el-icon-tickets"></i>
+        <span>订单</span>
+      </div>
       <div class="nav-item" @click="$router.push('/profile')">
         <i class="el-icon-user"></i>
         <span>我的</span>
@@ -69,141 +75,139 @@ export default {
     return {
       searchKeyword: '',
       activeCategory: 'all',
-      products: [
-        {
-          id: 1,
-          title: 'iPhone 12 Pro Max 256GB 海蓝色',
-          price: 6999,
-          image: 'https://via.placeholder.com/200x200?text=iPhone',
-          location: '上海'
-        },
-        {
-          id: 2,
-          title: 'MacBook Pro 2021 M1芯片',
-          price: 12999,
-          image: 'https://via.placeholder.com/200x200?text=MacBook',
-          location: '北京'
-        },
-        {
-          id: 3,
-          title: 'AirPods Pro 降噪耳机',
-          price: 1499,
-          image: 'https://via.placeholder.com/200x200?text=AirPods',
-          location: '广州'
-        },
-        {
-          id: 4,
-          title: '华为 Mate 40 Pro 5G手机',
-          price: 5999,
-          image: 'https://via.placeholder.com/200x200?text=Huawei',
-          location: '深圳'
-        },
-        {
-          id: 5,
-          title: '小米11 Ultra 至尊版',
-          price: 5499,
-          image: 'https://via.placeholder.com/200x200?text=Xiaomi',
-          location: '武汉'
-        },
-        {
-          id: 6,
-          title: '索尼 WH-1000XM4 无线降噪耳机',
-          price: 2299,
-          image: 'https://via.placeholder.com/200x200?text=Sony',
-          location: '成都'
-        },
-        {
-          id: 7,
-          title: 'iPad Pro 2021 12.9英寸',
-          price: 7999,
-          image: 'https://via.placeholder.com/200x200?text=iPad',
-          location: '杭州'
-        },
-        {
-          id: 8,
-          title: '任天堂 Switch 游戏机',
-          price: 2099,
-          image: 'https://via.placeholder.com/200x200?text=Switch',
-          location: '南京'
-        }
-      ],
+      products: [],
+      categories: [],
       page: 1,
-      pageSize: 8
+      pageSize: 8,
+      loading: false
     }
   },
   methods: {
-    searchProducts() {
-      // 实际开发中这里会调用API进行搜索
+    async searchProducts() {
       if (this.searchKeyword.trim()) {
-        this.$message.success(`正在搜索: ${this.searchKeyword}`)
-        // 模拟搜索结果
-        this.products = this.products.filter(product => 
-          product.title.toLowerCase().includes(this.searchKeyword.toLowerCase())
-        )
-      }
-    },
-    handleCategoryChange() {
-      // 实际开发中这里会根据分类调用API获取商品
-      this.$message.success(`切换到分类: ${this.activeCategory}`)
-      // 重置页码
-      this.page = 1
-      // 模拟不同分类的商品
-      if (this.activeCategory === 'all') {
-        // 恢复所有商品
-        this.loadProducts()
-      } else {
-        // 根据分类筛选商品
-        this.filterProductsByCategory(this.activeCategory)
-      }
-    },
-    loadMore() {
-      // 实际开发中这里会调用API加载更多商品
-      this.page++
-      this.$message.success(`加载更多商品，当前页: ${this.page}`)
-      // 模拟加载更多
-      const moreProducts = [
-        {
-          id: 9,
-          title: '戴尔 XPS 13 笔记本电脑',
-          price: 8999,
-          image: 'https://via.placeholder.com/200x200?text=Dell',
-          location: '重庆'
-        },
-        {
-          id: 10,
-          title: '三星 Galaxy S21 Ultra 5G',
-          price: 7999,
-          image: 'https://via.placeholder.com/200x200?text=Samsung',
-          location: '西安'
+        try {
+          const res = await this.$http.post('/good/list/page', {
+            goodName: this.searchKeyword,        
+            pageNum: this.page,
+            pageSize: this.pageSize,
+            status:0
+          })
+          this.products = res.data
+        } catch (error) {
+          this.$message.error('搜索失败')
         }
-      ]
-      this.products = [...this.products, ...moreProducts]
-    },
-    loadProducts() {
-      // 实际开发中这里会调用API获取商品列表
-      // 这里使用模拟数据
-    },
-    filterProductsByCategory(category) {
-      // 实际开发中这里会调用API根据分类获取商品
-      // 这里使用模拟数据进行筛选
-      const categoryMap = {
-        'digital': ['iPhone', 'MacBook', 'AirPods', '华为', '小米', '索尼', 'iPad', 'Switch', '戴尔', '三星'],
-        'clothing': ['Nike', 'Adidas', '优衣库', 'H&M'],
-        'home': ['宜家', '沙发', '床垫', '餐桌'],
-        'books': ['小说', '教材', '漫画', '杂志']
       }
-      
-      const keywords = categoryMap[category] || []
-      if (keywords.length > 0) {
-        this.products = this.products.filter(product => {
-          return keywords.some(keyword => product.title.includes(keyword))
+    },
+    async handleCategoryChange() {
+      const category = this.categories.find(c => c.id === this.activeCategory)
+      this.$message.success(`切换到分类: ${category ? category.name : '全部'}`)
+      this.page = 1
+      try {
+        const category = this.categories.find(c => c.id === this.activeCategory)
+        const res = await this.$http.post('/good/list/page', {
+          pageNum: this.page,
+          pageSize: this.pageSize,
+          categoryIds: this.activeCategory === 'all' ? null : [category.id],
+          status: 0
         })
+        this.products = res.data.items
+      } catch (error) {
+        this.$message.error('获取商品列表失败')
+      }
+    },
+    async loadMore() {
+      if (this.loading) return
+      
+      this.loading = true
+      this.page++
+      try {
+        const res = await this.$http.post('/good/list/page', {
+          pageNum: this.page,
+          pageSize: this.pageSize,
+          categoryIds: this.activeCategory === 'all' ? null : [this.activeCategory],
+          status: 0
+        })
+        
+        if (res.data.items && res.data.items.length > 0) {
+          this.products = [...this.products, ...res.data.items]
+        } else {
+          this.$message.info('没有更多商品了')
+        }
+      } catch (error) {
+        this.page--
+        this.$message.error('加载更多失败')
+      } finally {
+        this.loading = false
+      }
+    },
+    
+    handleScroll() {
+      // 获取滚动位置
+      const scrollTop = document.documentElement.scrollTop || document.body.scrollTop
+      // 获取页面高度
+      const scrollHeight = document.documentElement.scrollHeight || document.body.scrollHeight
+      // 获取视口高度
+      const clientHeight = document.documentElement.clientHeight || window.innerHeight
+      
+      // 当滚动到距离底部100px时触发加载更多
+      if (scrollTop + clientHeight >= scrollHeight - 10) {
+        this.loadMore()
+      }
+    },
+    async loadProducts() {
+      try {
+        const res = await this.$http.post('/good/list/page', {
+          pageNum: this.page,
+          pageSize: this.pageSize,
+          status: 0
+        })
+        this.products = res.data.items
+      } catch (error) {
+        this.$message.error('获取商品列表失败')
+      }
+    },
+    async loadCategories() {
+      try {
+        const res = await this.$http.get('/category/list', {
+          params: {
+            type: 0
+          }
+        })
+        this.categories = res.data.map(category => ({
+          id: category.id,
+          name: category.categoryName
+        }))
+      } catch (error) {
+        this.$message.error('获取分类列表失败')
+      }
+    },
+    async filterProductsByCategory(category) {
+      try {
+        const res = await this.$http.get('/api/products', {
+          params: {
+            category: category === 'all' ? null : category
+          }
+        })
+        this.products = res.data
+      } catch (error) {
+        this.$message.error('获取商品列表失败')
       }
     }
   },
-  created() {
-    // 页面创建时加载商品
-    this.loadProducts()
+  async created() {
+    // 页面创建时加载商品和分类
+    await this.loadProducts()
+    await this.loadCategories()
+  },
+  
+  mounted() {
+    // 添加滚动事件监听
+    window.addEventListener('scroll', this.handleScroll)
+  },
+  
+  beforeDestroy() {
+    // 组件销毁前移除事件监听
+    window.removeEventListener('scroll', this.handleScroll)
   }
 }
 </script>
@@ -272,10 +276,16 @@ export default {
   margin: 5px 0;
 }
 
-.product-location {
+.product-meta {
+  display: flex;
+  justify-content: space-between;
   font-size: 12px;
-  color: #999;
+  color: #666;
   margin: 5px 0;
+}
+
+.product-meta i {
+  margin-right: 3px;
 }
 
 .load-more {

@@ -181,7 +181,7 @@ export default {
           }).then(response => {
             // 存储token到localStorage
             if (response) {
-              localStorage.setItem('authToken', response.data)
+              localStorage.setItem('authToken', response.data.token)
               // 根据type字段跳转不同页面
               if (response.data.type === 0) {
                 this.$router.replace('/home')

@@ -5,15 +5,32 @@
         <span>地点管理</span>
         <el-button type="primary" size="mini" style="float: right" @click="handleAdd">新增地点</el-button>
       </div>
+      <el-input
+        v-model="searchForm.addressName"
+        placeholder="请输入地点名称"
+        style="width: 200px; margin-bottom: 20px"
+        clearable
+        @clear="handleSearchClear"
+      >
+        <el-button slot="append" icon="el-icon-search" @click="getLocationList" />
+      </el-input>
       
-      <el-table :data="locationList" border style="width: 100%">
-        <el-table-column :prop="'id'" label="ID" width="80">
+      <el-table :data="locationList" border style="width: 100%" :cell-style="{textAlign: 'center'}">
+        <el-table-column :prop="'id'" label="ID" width="180">
         <template slot-scope="scope">
         {{ String(scope.row.id) }}
         </template>
         </el-table-column>
-        <el-table-column prop="locationName" label="地点名称"></el-table-column>
-        <el-table-column prop="description" label="描述"></el-table-column>
+        <el-table-column prop="locationName" label="地点名称">
+          <template slot-scope="scope">
+            {{ scope.row.addressName || '-' }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="locationName" label="父级地点">
+          <template slot-scope="scope">
+            {{ scope.row.parentName === "NULL" ? '-' : scope.row.parentName }}
+          </template>
+        </el-table-column>
         <el-table-column label="操作" width="180">
           <template slot-scope="scope">
             <el-button size="mini" @click="handleEdit(scope.row)">编辑</el-button>
@@ -38,11 +55,8 @@
         <el-form-item label="地点名称" prop="name">
           <el-input v-model="locationForm.name"></el-input>
         </el-form-item>
-        <el-form-item label="详细地址" prop="address">
-          <el-input v-model="locationForm.address"></el-input>
-        </el-form-item>
-        <el-form-item label="描述" prop="description">
-          <el-input type="textarea" v-model="locationForm.description"></el-input>
+        <el-form-item label="父级地点" prop="parentId">
+          <AddressCascader v-model="locationForm.parentId" />
         </el-form-item>
       </el-form>
       <span slot="footer" class="dialog-footer">
@@ -54,8 +68,13 @@
 </template>
 
 <script>
+import AddressCascader from '@/components/AddressCascader';
+
 export default {
   name: 'LocationManagement',
+  components: {
+    AddressCascader
+  },
   data() {
     return {
       locationList: [],
@@ -66,15 +85,21 @@ export default {
       },
       dialogVisible: false,
       dialogTitle: '',
+      searchForm: {
+        addressName: null
+      },
       locationForm: {
         id: '',
         name: '',
+        parentId: [],
         address: '',
         description: ''
       },
       rules: {
         name: [{ required: true, message: '请输入地点名称', trigger: 'blur' }],
-        address: [{ required: true, message: '请输入详细地址', trigger: 'blur' }]
+        parentId: [{ required: false }],
+        address: [{ required: true, message: '请输入详细地址', trigger: 'blur' }],
+        description: [{ required: false }]
       }
     }
   },
@@ -83,14 +108,16 @@ export default {
   },
   methods: {
     getLocationList() {
-      this.$http.get('/location/list', {
-        params: {
-          page: this.pagination.current,
-          size: this.pagination.size
-        }
+      this.$http.post('/address/list/page', {
+        pageNum: this.pagination.current,
+        pageSize: this.pagination.size,
+        sortBy: "",
+        isAsc: false,
+        addressName: this.searchForm.addressName || "",
+        type: null
       }).then(res => {
         if (res.code === 200) {
-          this.locationList = res.data.records;
+          this.locationList = res.data.items;
           this.pagination.total = res.data.total;
         }
       });
@@ -116,7 +143,7 @@ export default {
         cancelButtonText: '取消',
         type: 'warning'
       }).then(() => {
-        this.$http.delete(`/location/${String(row.id)}`).then(res => {
+        this.$http.delete(`/address/delete`, { params: { id: String(row.id) } }).then(res => {
           if (res.code === 200) {
             this.$message.success('删除成功');
             this.getLocationList();
@@ -127,9 +154,18 @@ export default {
     submitForm() {
       this.$refs.locationForm.validate(valid => {
         if (valid) {
-          const api = this.locationForm.id ? '/location/update' : '/location/add';
-          const data = { ...this.locationForm, id: String(this.locationForm.id) };
-          this.$http.post(api, data).then(res => {
+          const api = this.locationForm.id ? '/address/update' : '/address/save';
+          const data = {
+            parentId: this.locationForm.parentId[this.locationForm.parentId.length-1],
+            addressName: this.locationForm.name,
+            type: 0
+          };
+          if (this.locationForm.id) {
+            data.id = String(this.locationForm.id);
+          }
+          delete data.parentName;
+          const httpMethod = this.locationForm.id ? 'put' : 'post';
+          this.$http[httpMethod](api, data).then(res => {
             if (res.code === 200) {
               this.$message.success('操作成功');
               this.dialogVisible = false;
@@ -145,6 +181,10 @@ export default {
     },
     handleCurrentChange(val) {
       this.pagination.current = val;
+      this.getLocationList();
+    },
+    handleSearchClear() {
+      this.searchForm.addressName = null;
       this.getLocationList();
     }
   }

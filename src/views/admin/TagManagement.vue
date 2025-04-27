@@ -6,14 +6,17 @@
         <el-button type="primary" size="mini" style="float: right" @click="handleAdd">新增标签</el-button>
       </div>
       
-      <el-table :data="tagList" border style="width: 100%">
-        <el-table-column :prop="'id'" label="ID" width="80">
+      <el-table :data="tagList" border style="width: 100%" cell-style="{textAlign: 'center'}">
+        <el-table-column :prop="'id'" label="ID" width="180">
           <template slot-scope="scope">
             {{ String(scope.row.id) }}
           </template>
         </el-table-column>
-        <el-table-column prop="name" label="标签名称"></el-table-column>
-        <el-table-column prop="description" label="描述"></el-table-column>
+        <el-table-column prop="name" label="标签名称">
+          <template slot-scope="scope">
+            {{ scope.row.tagName === "NULL" ? '-' : scope.row.tagName }}
+          </template>
+        </el-table-column>
         <el-table-column label="操作" width="180">
           <template slot-scope="scope">
             <el-button size="mini" @click="handleEdit(scope.row)">编辑</el-button>
@@ -37,9 +40,6 @@
       <el-form :model="tagForm" :rules="rules" ref="tagForm" label-width="100px">
         <el-form-item label="标签名称" prop="name">
           <el-input v-model="tagForm.name"></el-input>
-        </el-form-item>
-        <el-form-item label="描述" prop="description">
-          <el-input type="textarea" v-model="tagForm.description"></el-input>
         </el-form-item>
       </el-form>
       <span slot="footer" class="dialog-footer">
@@ -78,14 +78,16 @@ export default {
   },
   methods: {
     getTagList() {
-      this.$http.get('/tag/list', {
-        params: {
-          page: this.pagination.current,
-          size: this.pagination.size
-        }
+      this.$http.post('/tag/list/page', {
+        pageNum: this.pagination.current,
+        pageSize: this.pagination.size,
+        sortBy: "",
+        isAsc: false,
+        tagName: "",
+        type: "0"
       }).then(res => {
         if (res.code === 200) {
-          this.tagList = res.data.records.map(item => ({ ...item, id: String(item.id) }));
+          this.tagList = res.data.items.map(item => ({ ...item, id: String(item.id) }));
           this.pagination.total = res.data.total;
         }
       });
@@ -111,7 +113,7 @@ export default {
         cancelButtonText: '取消',
         type: 'warning'
       }).then(() => {
-        this.$http.delete(`/tag/${String(row.id)}`).then(res => {
+        this.$http.delete('/tag/delete', { params: { id: String(row.id) } }).then(res => {
           if (res.code === 200) {
             this.$message.success('删除成功');
             this.getTagList();
@@ -122,9 +124,19 @@ export default {
     submitForm() {
       this.$refs.tagForm.validate(valid => {
         if (valid) {
-          const api = this.tagForm.id ? '/tag/update' : '/tag/add';
-          const data = { ...this.tagForm, id: String(this.tagForm.id) };
-          this.$http.post(api, data).then(res => {
+          const api = this.tagForm.id ? '/tag/update' : '/tag/save';
+          const httpMethod = this.tagForm.id ? 'put' : 'post';
+          const data = this.tagForm.id ? 
+            { 
+              id: String(this.tagForm.id),
+              tagName: this.tagForm.name,
+              type: 0 
+            } : 
+            { 
+              tagName: this.tagForm.name,
+              type: 0 
+            };
+          this.$http[httpMethod](api, data).then(res => {
             if (res.code === 200) {
               this.$message.success('操作成功');
               this.dialogVisible = false;
